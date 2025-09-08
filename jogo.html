@@ -42,7 +42,7 @@
             display: none;
             z-index: 20;
         }
-        #restartButton {
+        #restartButton, #hornButton {
             margin-top: 20px;
             padding: 10px 20px;
             font-size: 1.2em;
@@ -54,8 +54,14 @@
             cursor: pointer;
             transition: background-color 0.3s ease;
         }
-        #restartButton:hover {
+        #restartButton:hover, #hornButton:hover {
             background-color: #0056b3;
+        }
+        #hornButton {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 15;
         }
         canvas {
             display: block;
@@ -70,40 +76,22 @@
         <button id="restartButton">Reiniciar Jogo</button>
     </div>
 
+    <!-- Botão de buzina -->
+    <button id="hornButton">🚗 Buzinar</button>
+    <!-- Áudio da buzina (coloque o arquivo buzina.mp3 na mesma pasta que este HTML) -->
+    <audio id="hornSound" src="buzina.mp3" preload="auto"></audio>
+    <audio id="engineSound" src="motor.mp3" preload="auto" loop></audio>
+
     <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
     <script>
-        // Setup básico
+        // ================== SETUP BÁSICO ==================
         const scene = new THREE.Scene();
-        let currentTheme = 0; // controla cenário/fase
+        let currentTheme = 0;
         const themes = [
-            {
-                roadColor: 0x333333,
-                skyColor: 0x87ceeb, // azul claro
-                ambientIntensity: 0.7,
-                directionalColor: 0xffffff,
-                directionalIntensity: 0.8
-            },
-            {
-                roadColor: 0x222222,
-                skyColor: 0xffa500, // pôr do sol laranja
-                ambientIntensity: 0.5,
-                directionalColor: 0xffaa00,
-                directionalIntensity: 0.6
-            },
-            {
-                roadColor: 0x444444,
-                skyColor: 0x001844, // noite azul escuro
-                ambientIntensity: 0.3,
-                directionalColor: 0x6666ff,
-                directionalIntensity: 0.5
-            },
-            {
-                roadColor: 0x1a3d1a,
-                skyColor: 0xaaffaa, // verde mato claro
-                ambientIntensity: 0.6,
-                directionalColor: 0x44bb44,
-                directionalIntensity: 0.7
-            }
+            { roadColor: 0x333333, skyColor: 0x87ceeb, ambientIntensity: 0.7, directionalColor: 0xffffff, directionalIntensity: 0.8 },
+            { roadColor: 0x222222, skyColor: 0xffa500, ambientIntensity: 0.5, directionalColor: 0xffaa00, directionalIntensity: 0.6 },
+            { roadColor: 0x444444, skyColor: 0x001844, ambientIntensity: 0.3, directionalColor: 0x6666ff, directionalIntensity: 0.5 },
+            { roadColor: 0x1a3d1a, skyColor: 0xaaffaa, ambientIntensity: 0.6, directionalColor: 0x44bb44, directionalIntensity: 0.7 }
         ];
 
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -114,7 +102,7 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Luzes (serão atualizadas por tema)
+        // Luzes
         let ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
         scene.add(ambientLight);
         let directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -129,7 +117,7 @@
         road.position.z = -30;
         scene.add(road);
 
-        // Linhas centrais da estrada
+        // Linhas da estrada
         const lineMaterial = new THREE.MeshStandardMaterial({color: 0xffff00});
         const lines = [];
         for(let i=0; i<20; i++) {
@@ -140,32 +128,23 @@
             lines.push(line);
         }
 
-        // Função para criar carros mais detalhados (com formas básicas)
         function createCar(color) {
             const car = new THREE.Group();
-
-            // Base do carro
             const baseGeo = new THREE.BoxGeometry(3, 1, 5);
             const baseMat = new THREE.MeshStandardMaterial({color});
             const base = new THREE.Mesh(baseGeo, baseMat);
             base.position.y = 0.5;
             car.add(base);
-
-            // Capô frontal
             const hoodGeo = new THREE.BoxGeometry(3, 0.7, 2);
             const hoodMat = new THREE.MeshStandardMaterial({color: 0x222222});
             const hood = new THREE.Mesh(hoodGeo, hoodMat);
             hood.position.set(0, 1.0, 1.5);
             car.add(hood);
-
-            // Teto
             const roofGeo = new THREE.BoxGeometry(2, 0.5, 3);
             const roofMat = new THREE.MeshStandardMaterial({color: 0x555555});
             const roof = new THREE.Mesh(roofGeo, roofMat);
             roof.position.set(0, 1.3, -0.3);
             car.add(roof);
-
-            // Rodas
             const wheelGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.3, 16);
             const wheelMat = new THREE.MeshStandardMaterial({color: 0x222222});
             for(let i = -1; i <=1; i+=2) {
@@ -176,109 +155,80 @@
                     car.add(wheel);
                 }
             }
-
             return car;
         }
 
-        // Função para criar árvore simples
         function createTree() {
             const tree = new THREE.Group();
-
-            // Tronco
             const trunkGeo = new THREE.CylinderGeometry(0.3, 0.3, 2);
             const trunkMat = new THREE.MeshStandardMaterial({color: 0x8B4513});
             const trunk = new THREE.Mesh(trunkGeo, trunkMat);
             trunk.position.y = 1;
             tree.add(trunk);
-
-            // Folhas (cone)
             const leavesGeo = new THREE.ConeGeometry(1.5, 4, 8);
             const leavesMat = new THREE.MeshStandardMaterial({color: 0x228B22});
             const leaves = new THREE.Mesh(leavesGeo, leavesMat);
             leaves.position.y = 3.5;
             tree.add(leaves);
-
             return tree;
         }
 
-        // Carro do jogador
         const playerCar = createCar(0x0000ff);
-        playerCar.position.y = 0;
         playerCar.position.z = 20;
         scene.add(playerCar);
 
-        // Inimigos
         const enemies = [];
-
-        // Árvores ao redor da estrada (10 de cada lado)
         const trees = [];
         for(let i=0; i<10; i++) {
             let treeL = createTree();
             treeL.position.set(-12, 0, i*10 - 50);
             scene.add(treeL);
             trees.push(treeL);
-
             let treeR = createTree();
             treeR.position.set(12, 0, i*10 - 50);
             scene.add(treeR);
             trees.push(treeR);
         }
 
-        // Variáveis do jogo
         let score = 0;
         let gameOver = false;
         const speed = 0.5;
         const laneWidth = 7;
-        const maxX = laneWidth; // jogador pode mover entre -7 e 7 no eixo X
-
-        // Controles
+        const maxX = laneWidth;
         const keys = {};
         window.addEventListener('keydown', e => keys[e.key] = true);
         window.addEventListener('keyup', e => keys[e.key] = false);
 
-        // Criar inimigos com carro 3D
         function spawnEnemy() {
             if (gameOver) return;
             const enemy = createCar(0xff0000);
-            enemy.position.y = 0;
             enemy.position.z = -50;
-            // Lanes: -laneWidth, 0, laneWidth
             const lanes = [-laneWidth, 0, laneWidth];
             enemy.position.x = lanes[Math.floor(Math.random()*lanes.length)];
             scene.add(enemy);
             enemies.push(enemy);
         }
 
-        // Spawn inicial e intervalos
         spawnEnemy();
         let spawnInterval = setInterval(spawnEnemy, 1500);
 
-        // Atualizar posição da linha para simular movimento
         function updateRoadLines() {
             lines.forEach(line => {
                 line.position.z += speed*10;
                 if(line.position.z > 30) line.position.z = -70;
             });
         }
-
-        // Atualizar posição das árvores para dar sensação de movimento
         function updateTrees() {
             trees.forEach(tree => {
                 tree.position.z += speed;
-                if(tree.position.z > 20) {
-                    tree.position.z -= 120;
-                }
+                if(tree.position.z > 20) tree.position.z -= 120;
             });
         }
-
-        // Detectar colisão AABB simples para grupos
         function checkCollision(obj1, obj2) {
             const box1 = new THREE.Box3().setFromObject(obj1);
             const box2 = new THREE.Box3().setFromObject(obj2);
             return box1.intersectsBox(box2);
         }
-
-        // Atualizar tema/cenário com base na pontuação
         function updateTheme() {
             let phase = Math.floor(score / 15) % themes.length;
             if (phase !== currentTheme) {
@@ -293,14 +243,12 @@
             }
         }
 
-        // Elementos DOM
         const scoreDisplay = document.getElementById('score');
         const endGameMessage = document.getElementById('endGameMessage');
         const finalScoreDisplay = document.getElementById('finalScore');
         const restartButton = document.getElementById('restartButton');
 
         restartButton.addEventListener('click', () => {
-            // Resetar jogo
             gameOver = false;
             score = 0;
             scoreDisplay.textContent = score;
@@ -312,26 +260,14 @@
             animate();
         });
 
-        // Loop do jogo
         function animate() {
             if (gameOver) return;
-
             requestAnimationFrame(animate);
-
-            // Movimentação do jogador
-            if(keys['ArrowLeft'] && playerCar.position.x > -maxX) {
-                playerCar.position.x -= 0.3;
-            }
-            if(keys['ArrowRight'] && playerCar.position.x < maxX) {
-                playerCar.position.x += 0.3;
-            }
-
-            // Atualizar inimigos
+            if(keys['ArrowLeft'] && playerCar.position.x > -maxX) playerCar.position.x -= 0.3;
+            if(keys['ArrowRight'] && playerCar.position.x < maxX) playerCar.position.x += 0.3;
             for(let i = enemies.length - 1; i >= 0; i--) {
                 const enemy = enemies[i];
                 enemy.position.z += speed;
-
-                // Remove inimigos que passaram do jogador e pontua
                 if(enemy.position.z > 30) {
                     scene.remove(enemy);
                     enemies.splice(i,1);
@@ -339,8 +275,6 @@
                     scoreDisplay.textContent = score;
                     updateTheme();
                 }
-
-                // Checar colisão
                 if(checkCollision(playerCar, enemy)) {
                     gameOver = true;
                     finalScoreDisplay.textContent = score;
@@ -348,32 +282,34 @@
                     clearInterval(spawnInterval);
                 }
             }
-
             updateRoadLines();
             updateTrees();
-
             renderer.render(scene, camera);
         }
 
-        // Inicializa background e luz
         scene.background = new THREE.Color(themes[0].skyColor);
         ambientLight.color.setHex(themes[0].directionalColor);
         ambientLight.intensity = themes[0].ambientIntensity;
         directionalLight.color.setHex(themes[0].directionalColor);
         directionalLight.intensity = themes[0].directionalIntensity;
-
         animate();
 
-        // Ajustar canvas ao redimensionar a janela
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth/window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
+
+        // ======= BUZINA =======
+        function tocarBuzina() {
+            const hornSound = document.getElementById("hornSound");
+            hornSound.currentTime = 0;
+            hornSound.play();
+        }
+        document.getElementById("hornButton").addEventListener("click", tocarBuzina);
+        window.addEventListener("keydown", (e) => {
+            if (e.key.toLowerCase() === "b") tocarBuzina();
+        });
     </script>
-    <a href="https://gustavopado.github.io/Principal/" class="btn btn-info link-a-1">Voltar</a>
-                               
 </body>
-
 </html>
-
